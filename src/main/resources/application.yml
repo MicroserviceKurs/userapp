@@ -1,1 +1,3 @@
-spring.application.name=UserApp
+springdoc:
+ swagger-ui:
+  path: /swagger-ui.html
