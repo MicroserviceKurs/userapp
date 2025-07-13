@@ -1,6 +1,17 @@
 spring:
   application:
     name: userapp
+  datasource:
+    password: ${DATABASE_PASSWORD:123qwe}
+    username: ${DATABASE_USERNAME:admin}
+    url: jdbc:postgresql://${DATABASE_URL:localhost:5432}/${DATABASE_NAME:userapp}
+    hikari:
+      maximum-pool-size: 10
+      max-lifetime: 90000
+      pool-name: userapp-pool
+    driver-class-name: org.postgresql.Driver
+  liquibase:
+    change-log: classpath:db/changelog/db.changelog-master.xml
 springdoc:
   swagger-ui:
     path: /swagger-ui.html
