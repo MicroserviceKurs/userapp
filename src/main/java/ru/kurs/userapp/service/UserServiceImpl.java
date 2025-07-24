@@ -1,5 +1,7 @@
 package ru.kurs.userapp.service;
 
+import io.micrometer.core.annotation.Timed;
+import io.micrometer.core.instrument.MeterRegistry;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.PreparedStatementSetter;
 import org.springframework.jdbc.core.RowMapper;
@@ -15,6 +17,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -25,14 +28,17 @@ public class UserServiceImpl implements UserService {
     private final JdbcTemplate jdbcTemplate;
     private final UserRepository userRepository;
     private final UserMapper userMapper;
+    private final MeterRegistry meterRegistry;
 
-    public UserServiceImpl(JdbcTemplate jdbcTemplate, UserRepository userRepository, UserMapper userMapper) {
+    public UserServiceImpl(JdbcTemplate jdbcTemplate, UserRepository userRepository, UserMapper userMapper, MeterRegistry meterRegistry) {
         this.jdbcTemplate = jdbcTemplate;
         this.userRepository = userRepository;
         this.userMapper = userMapper;
+        this.meterRegistry = meterRegistry;
     }
 
     @Override
+    @Timed("service")
     public UserDTO createUser(UserDTO userDTO) {
         if (userDTO == null || !StringUtils.hasText(userDTO.getName()) || !StringUtils.hasText(userDTO.getPassword())) {
             throw new IllegalArgumentException("User data cannot be null and name and password are required");
@@ -49,6 +55,7 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    @Timed("service")
     public UserDTO getUserById(UUID id) {
         if (id == null) {
             return null;
@@ -61,14 +68,18 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    @Timed("service")
     public List<UserDTO> getAllUsers() {
-        return userRepository.findAll().stream()
+        var users = userRepository.findAll().stream()
                 .filter(user -> !Boolean.TRUE.equals(user.getDeleted()))
                 .map(userMapper::toDTO)
                 .collect(Collectors.toList());
+        meterRegistry.gaugeCollectionSize("users", Collections.emptyList(), users);
+        return users;
     }
 
     @Override
+    @Timed("service")
     public UserDTO updateUser(UUID id, UserDTO userDTO) {
         if (id == null || userDTO == null) {
             return null;
@@ -95,6 +106,7 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    @Timed("service")
     public UserDTO getUserByLoginAndPassword(String login, String password) {
         var hashPassword = userMapper.hashPassword(password);
         var users = jdbcTemplate.query("SELECT id, login FROM users u WHERE u.login=? AND u.password_hash=?", new PreparedStatementSetter() {
